@@ -1,0 +1,11 @@
+name: Ограничение
+description: То, что проверка цитаты пока не умеет
+title: "[limit] "
+labels: ["limitation"]
+body:
+  - type: textarea
+    attributes:
+      label: В чём дыра
+      description: Коротко, на примере фразы из статьи
+    validations:
+      required: true
