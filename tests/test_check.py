@@ -1,4 +1,4 @@
-from quote_check.check import field_status, quote_found
+from quote_check.check import collapse, field_status, match_span, quote_found
 
 
 PAGE = (
@@ -33,3 +33,15 @@ def test_wrong_page_text_stays_unchecked():
 def test_case_and_extra_spaces_are_ignored():
     quote = "  Метрики   psnr и ssim\nплохо   совпадают с MAP "
     assert quote_found(PAGE, quote)
+
+
+def test_match_span_points_at_the_phrase():
+    quote = "метрики   PSNR и SSIM плохо совпадают с mAP"
+    span = match_span(PAGE, quote)
+    assert span is not None
+    start, end = span
+    assert collapse(PAGE[start:end]) == collapse(quote)
+
+
+def test_match_span_is_missing_for_a_foreign_phrase():
+    assert match_span(PAGE, "модель обучали с нуля на ImageNet") is None

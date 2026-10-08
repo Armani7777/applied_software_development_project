@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка цитаты на странице</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="band">
+    <div class="wrap">
+      <p class="kicker">quote_page_check</p>
+      <h1>Проверка цитаты на странице</h1>
+      <p class="lead">Вставьте текст страницы и фразу из карточки. Модуль скажет, можно ли эту фразу показывать: она нашлась, её нет, или поле так и осталось пустым.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <form id="form" class="grid">
+      <section class="card">
+        <div class="card-head">
+          <h2>Текст страницы</h2>
+          <label class="page-field">Страница
+            <input id="page" name="page" type="number" min="1" value="4" required>
+          </label>
+        </div>
+        <textarea id="pageText" name="page_text" rows="12" placeholder="Сюда вставляется уже извлечённый текст одной страницы"></textarea>
+        <button class="ghost" type="button" id="fillPage">Подставить учебный абзац</button>
+      </section>
+
+      <section class="card quote-card">
+        <h2>Цитата из карточки</h2>
+        <textarea id="quote" name="quote" rows="6" placeholder="Фраза, которую карточка хочет показать"></textarea>
+        <p class="hint">Лишние пробелы и регистр не мешают. Перенос строки внутри фразы тоже.</p>
+        <button class="primary" type="submit" id="submit">Проверить</button>
+        <div class="cases" role="group" aria-label="Готовые случаи">
+          <button type="button" data-case="cited">Фраза со страницы</button>
+          <button type="button" data-case="unchecked">Чужая фраза</button>
+          <button type="button" data-case="empty">Пустое поле</button>
+        </div>
+      </section>
+    </form>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <p class="status-kicker" id="statusCode"></p>
+      <h2 id="statusTitle"></h2>
+      <p id="statusText"></p>
+      <blockquote id="shownQuote"></blockquote>
+      <div id="preview" class="preview"></div>
+    </section>
+
+    <p class="limits">Не склеиваю слово, разорванное дефисом в конце строки, и не смотрю соседнюю страницу. Если фраза из-за этого не находится, статус будет «не проверено», а не «цитата верна».</p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

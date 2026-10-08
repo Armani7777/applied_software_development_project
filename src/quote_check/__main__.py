@@ -7,6 +7,11 @@ from quote_check.check import field_status
 
 def main(argv=None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    if not args:
+        from quote_check.server import serve
+
+        serve()
+        return 0
     if len(args) != 3:
         print("usage: python -m quote_check <page.txt> <page_number> <quote>")
         return 2
