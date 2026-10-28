@@ -31,15 +31,20 @@ const pageText = document.querySelector("#pageText");
 const quoteInput = document.querySelector("#quote");
 const result = document.querySelector("#result");
 const submit = document.querySelector("#submit");
+const historyList = document.querySelector("#history");
+const historyEmpty = document.querySelector("#historyEmpty");
 
 pageText.value = SAMPLE_PAGE;
 quoteInput.value = CASES.cited;
 
 function show(data) {
-  const copy = COPY[data.status];
+  const copy = COPY[data.status] || {
+    title: "Проверка не запустилась",
+    text: data.error || "Не понял ответ.",
+  };
   result.hidden = false;
-  result.className = "result " + data.status;
-  document.querySelector("#statusCode").textContent = "страница " + data.page + "  ·  " + data.status;
+  result.className = "verdict " + data.status;
+  document.querySelector("#statusCode").textContent = "стр. " + data.page + " · " + data.status;
   document.querySelector("#statusTitle").textContent = copy.title;
   document.querySelector("#statusText").textContent = copy.text;
   const shown = data.status === "empty" ? "Пустая строка" : quoteInput.value.trim();
@@ -50,18 +55,34 @@ function show(data) {
   if (data.start != null && data.end != null) {
     const mark = document.createElement("mark");
     mark.textContent = text.slice(data.start, data.end);
-    preview.append(document.createTextNode(text.slice(0, data.start)), mark, document.createTextNode(text.slice(data.end)));
+    preview.append(
+      document.createTextNode(text.slice(0, data.start)),
+      mark,
+      document.createTextNode(text.slice(data.end)),
+    );
   } else if (!text.trim()) {
     preview.textContent = "Текст страницы пустой.";
   } else {
     preview.textContent = text;
   }
+  addHistory(data);
   result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function addHistory(data) {
+  historyEmpty.hidden = true;
+  const item = document.createElement("li");
+  item.className = data.status;
+  const snippet = (quoteInput.value.trim() || "пусто").slice(0, 42);
+  item.textContent = data.status + " · стр. " + data.page + " · " + snippet;
+  historyList.prepend(item);
+  while (historyList.children.length > 8) {
+    historyList.lastElementChild.remove();
+  }
 }
 
 async function check() {
   submit.disabled = true;
-  submit.textContent = "Проверяю…";
   try {
     const response = await fetch("/api/check", {
       method: "POST",
@@ -74,24 +95,18 @@ async function check() {
     });
     const data = await response.json();
     if (!response.ok) {
-      result.hidden = false;
-      result.className = "result empty";
-      document.querySelector("#statusCode").textContent = "не получилось";
-      document.querySelector("#statusTitle").textContent = "Проверка не запустилась";
-      document.querySelector("#statusText").textContent = data.error || "Не понял ответ.";
-      document.querySelector("#shownQuote").textContent = "";
-      document.querySelector("#preview").textContent = "";
+      show({ status: "empty", page: pageInput.value, error: data.error });
       return;
     }
     show(data);
   } catch (error) {
-    result.hidden = false;
-    result.className = "result empty";
-    document.querySelector("#statusTitle").textContent = "Страница не дошла до проверки";
-    document.querySelector("#statusText").textContent = "Сервер не ответил. Запустите ещё раз python run.py и обновите вкладку.";
+    show({
+      status: "empty",
+      page: pageInput.value,
+      error: "Сервер не ответил. Если страница открыта из контейнера, проверьте docker logs.",
+    });
   } finally {
     submit.disabled = false;
-    submit.textContent = "Проверить";
   }
 }
 
@@ -100,10 +115,25 @@ form.addEventListener("submit", (event) => {
   check();
 });
 
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    check();
+  }
+});
+
 document.querySelector("#fillPage").addEventListener("click", () => {
   pageText.value = SAMPLE_PAGE;
   pageInput.value = "4";
   pageText.focus();
+});
+
+document.querySelector("#file").addEventListener("change", async (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) {
+    return;
+  }
+  pageText.value = await file.text();
 });
 
 document.querySelectorAll("[data-case]").forEach((button) => {

@@ -3,54 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Проверка цитаты на странице</title>
+  <title>Карточка статьи — проверка цитаты</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="band">
-    <div class="wrap">
-      <p class="kicker">quote_page_check</p>
-      <h1>Проверка цитаты на странице</h1>
-      <p class="lead">Вставьте текст страницы и фразу из карточки. Модуль скажет, можно ли эту фразу показывать: она нашлась, её нет, или поле так и осталось пустым.</p>
-    </div>
-  </header>
+  <div class="desk">
+    <header class="mast">
+      <div>
+        <p class="kicker">помощник для научной работы</p>
+        <h1>Проверка цитаты на странице</h1>
+      </div>
+      <p class="mast-note">Карточка не считается готовой, пока фраза не находится на указанной странице.</p>
+    </header>
 
-  <main class="wrap">
-    <form id="form" class="grid">
-      <section class="card">
-        <div class="card-head">
-          <h2>Текст страницы</h2>
-          <label class="page-field">Страница
+    <form id="form" class="workspace">
+      <section class="sheet">
+        <div class="sheet-top">
+          <div>
+            <p class="label">Текст страницы</p>
+            <p class="sub">Уже извлечённый слой, не PDF целиком</p>
+          </div>
+          <label class="page-chip">стр.
             <input id="page" name="page" type="number" min="1" value="4" required>
           </label>
         </div>
-        <textarea id="pageText" name="page_text" rows="12" placeholder="Сюда вставляется уже извлечённый текст одной страницы"></textarea>
-        <button class="ghost" type="button" id="fillPage">Подставить учебный абзац</button>
-      </section>
-
-      <section class="card quote-card">
-        <h2>Цитата из карточки</h2>
-        <textarea id="quote" name="quote" rows="6" placeholder="Фраза, которую карточка хочет показать"></textarea>
-        <p class="hint">Лишние пробелы и регистр не мешают. Перенос строки внутри фразы тоже.</p>
-        <button class="primary" type="submit" id="submit">Проверить</button>
-        <div class="cases" role="group" aria-label="Готовые случаи">
-          <button type="button" data-case="cited">Фраза со страницы</button>
-          <button type="button" data-case="unchecked">Чужая фраза</button>
-          <button type="button" data-case="empty">Пустое поле</button>
+        <textarea id="pageText" name="page_text" rows="14" placeholder="Вставьте текст одной страницы или откройте .txt"></textarea>
+        <div class="sheet-actions">
+          <button class="ghost" type="button" id="fillPage">Учебный абзац</button>
+          <label class="ghost file-btn">Открыть .txt
+            <input id="file" type="file" accept=".txt,text/plain" hidden>
+          </label>
         </div>
       </section>
+
+      <aside class="side">
+        <section class="card">
+          <p class="label">Цитата из карточки</p>
+          <textarea id="quote" name="quote" rows="5" placeholder="Фраза, которую карточка хочет показать"></textarea>
+          <p class="hint">Пробелы, перенос строки и регистр не делают фразу другой.</p>
+          <button class="primary" type="submit" id="submit">Проверить <span>Ctrl + Enter</span></button>
+          <div class="cases" role="group" aria-label="Готовые случаи">
+            <button type="button" data-case="cited">Фраза со страницы</button>
+            <button type="button" data-case="unchecked">Чужая фраза</button>
+            <button type="button" data-case="empty">Пустое поле</button>
+          </div>
+        </section>
+
+        <section class="legend">
+          <p class="label">Три ответа</p>
+          <ul>
+            <li><i class="dot cited"></i><b>cited</b> — фраза на странице есть, поле можно показывать</li>
+            <li><i class="dot unchecked"></i><b>unchecked</b> — строка есть, на этой странице её нет</li>
+            <li><i class="dot empty"></i><b>empty</b> — цитату забыли, это не то же самое, что «не нашёл»</li>
+          </ul>
+        </section>
+      </aside>
     </form>
 
-    <section id="result" class="result" hidden aria-live="polite">
-      <p class="status-kicker" id="statusCode"></p>
-      <h2 id="statusTitle"></h2>
+    <section id="result" class="verdict" hidden aria-live="polite">
+      <div class="verdict-head">
+        <p class="stamp" id="statusCode"></p>
+        <h2 id="statusTitle"></h2>
+      </div>
       <p id="statusText"></p>
       <blockquote id="shownQuote"></blockquote>
       <div id="preview" class="preview"></div>
     </section>
 
-    <p class="limits">Не склеиваю слово, разорванное дефисом в конце строки, и не смотрю соседнюю страницу. Если фраза из-за этого не находится, статус будет «не проверено», а не «цитата верна».</p>
-  </main>
+    <section class="history-block">
+      <p class="label">Эта сессия</p>
+      <ol id="history" class="history"></ol>
+      <p id="historyEmpty" class="hint">Пока пусто. Три кнопки справа подставляют учебный случай за один клик.</p>
+    </section>
+
+    <p class="limits">Не склеиваю слово с дефисом на конце строки и не смотрю соседнюю страницу. Если фраза из-за этого не находится, статус будет «не проверено», а не «цитата верна».</p>
+  </div>
   <script src="/app.js"></script>
 </body>
 </html>

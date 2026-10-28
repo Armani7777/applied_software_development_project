@@ -21,3 +21,29 @@ jobs:
 
       - name: run tests
         run: pytest
+
+  image:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: build image
+        run: docker build -t quote-page-check:ci .
+
+      - name: tests inside the image
+        run: docker run --rm --entrypoint pytest quote-page-check:ci
+
+      - name: start container and check the page
+        run: |
+          docker run -d --name quote-page-check -p 8765:8765 quote-page-check:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/ >/dev/null; then
+              echo "page is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs quote-page-check
+          exit 1

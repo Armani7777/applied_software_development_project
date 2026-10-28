@@ -82,9 +82,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def serve(host="127.0.0.1", port=8765, open_browser=True):
+def serve(host=None, port=None, open_browser=None):
+    import os
     import threading
     import webbrowser
+
+    if host is None:
+        host = os.environ.get("QUOTE_CHECK_HOST", "127.0.0.1")
+    if port is None:
+        port = int(os.environ.get("QUOTE_CHECK_PORT", "8765"))
+    if open_browser is None:
+        open_browser = os.environ.get("QUOTE_CHECK_OPEN_BROWSER", "1") not in ("0", "false", "no")
 
     bound = None
     last_error = None
@@ -99,8 +107,8 @@ def serve(host="127.0.0.1", port=8765, open_browser=True):
         raise last_error
 
     url = f"http://{host}:{port}/"
-    print(f"Интерфейс: {url}")
-    print("Закрыть: Ctrl+C")
+    print(f"Интерфейс: {url}", flush=True)
+    print("Закрыть: Ctrl+C", flush=True)
     if open_browser:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:

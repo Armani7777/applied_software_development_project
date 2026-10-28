@@ -1,0 +1,22 @@
+# Локальный Jenkins. Из папки репозитория:
+# docker compose -f jenkins/docker-compose.yml up -d
+# Потом http://localhost:8080
+# Пароль: docker exec jenkins-quote cat /var/jenkins_home/secrets/initialAdminPassword
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins-quote
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - //var/run/docker.sock:/var/run/docker.sock
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
+    restart: unless-stopped
+    user: root
+
+volumes:
+  jenkins_home:

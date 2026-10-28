@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    image: quote-page-check:local
+    ports:
+      - "8765:8765"
+    environment:
+      QUOTE_CHECK_HOST: "0.0.0.0"
+      QUOTE_CHECK_OPEN_BROWSER: "0"
