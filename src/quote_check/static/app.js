@@ -1,152 +1,245 @@
-const SAMPLE_PAGE = [
-  "В работе сравнивают сжатие JPEG и точность детекции.",
-  "Авторы пишут, что метрики PSNR и SSIM плохо совпадают с mAP.",
-  "Проверка шла на выборке COCO val2017.",
-].join("\n");
+const $ = (id) => document.getElementById(id);
 
-const CASES = {
-  cited: "метрики   PSNR и SSIM плохо совпадают с mAP",
-  unchecked: "модель обучали с нуля на ImageNet",
-  empty: "   ",
-};
+const title = $("title");
+const draft = $("draft");
+const saveHint = $("saveHint");
+const messages = $("messages");
+const hitsBox = $("hits");
+const hitsEmpty = $("hitsEmpty");
+let fileB64 = null;
+let fileName = "";
+let saveTimer = null;
 
-const COPY = {
-  cited: {
-    title: "Цитата на странице есть",
-    text: "Фраза нашлась. Поле карточки можно показывать. Лишние пробелы, переносы и регистр я не считаю другой цитатой.",
-  },
-  unchecked: {
-    title: "На этой странице фразы нет",
-    text: "Строка в карточке есть, но в тексте этой страницы её нет. Это не пустое поле: в карточке стоит «не проверено», а не «готово».",
-  },
-  empty: {
-    title: "Цитату не вписали",
-    text: "В поле пусто или одни пробелы. Так карточку закрывать нельзя. Это другой случай, не «не нашёл».",
-  },
-};
+function toast(text) {
+  saveHint.textContent = text;
+}
 
-const form = document.querySelector("#form");
-const pageInput = document.querySelector("#page");
-const pageText = document.querySelector("#pageText");
-const quoteInput = document.querySelector("#quote");
-const result = document.querySelector("#result");
-const submit = document.querySelector("#submit");
-const historyList = document.querySelector("#history");
-const historyEmpty = document.querySelector("#historyEmpty");
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Запрос не прошёл");
+  }
+  return data;
+}
 
-pageText.value = SAMPLE_PAGE;
-quoteInput.value = CASES.cited;
+function renderPapers(papers) {
+  $("railPapers").innerHTML = papers.map((p) => (
+    `<article class="rail-card"><b>${escapeHtml(p.title)}</b>${escapeHtml(p.authors)}, ${escapeHtml(p.year)} · ${p.page_count} стр.</article>`
+  )).join("");
+  $("libList").innerHTML = papers.map((p) => (
+    `<article class="lib-item">
+      <h3>${escapeHtml(p.title)}</h3>
+      <p class="muted">${escapeHtml(p.authors)} · ${escapeHtml(p.year)} · ${p.page_count} стр., ${p.chars} знаков</p>
+      <button class="kill" data-del="${p.id}" type="button">убрать</button>
+    </article>`
+  )).join("") || "<p class='muted'>Пока пусто.</p>";
+  document.querySelectorAll("[data-del]").forEach((btn) => {
+    btn.onclick = async () => {
+      renderPapers((await api("/api/papers/remove", { id: btn.dataset.del })).papers);
+    };
+  });
+}
 
-function show(data) {
-  const copy = COPY[data.status] || {
-    title: "Проверка не запустилась",
-    text: data.error || "Не понял ответ.",
-  };
-  result.hidden = false;
-  result.className = "verdict " + data.status;
-  document.querySelector("#statusCode").textContent = "стр. " + data.page + " · " + data.status;
-  document.querySelector("#statusTitle").textContent = copy.title;
-  document.querySelector("#statusText").textContent = copy.text;
-  const shown = data.status === "empty" ? "Пустая строка" : quoteInput.value.trim();
-  document.querySelector("#shownQuote").textContent = shown;
-  const preview = document.querySelector("#preview");
-  preview.replaceChildren();
-  const text = pageText.value;
-  if (data.start != null && data.end != null) {
-    const mark = document.createElement("mark");
-    mark.textContent = text.slice(data.start, data.end);
-    preview.append(
-      document.createTextNode(text.slice(0, data.start)),
-      mark,
-      document.createTextNode(text.slice(data.end)),
-    );
-  } else if (!text.trim()) {
-    preview.textContent = "Текст страницы пустой.";
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = "bubble " + role;
+  div.textContent = text;
+  messages.append(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showHits(hits) {
+  if (!hits || !hits.length) {
+    hitsEmpty.hidden = false;
+    hitsBox.innerHTML = "";
+    return;
+  }
+  hitsEmpty.hidden = true;
+  hitsBox.innerHTML = hits.map((h) => `
+    <article class="hit">
+      <b>${escapeHtml(h.cite)}</b>
+      <span class="stamp ${h.status}">${h.status} · с. ${h.page}</span>
+      <div>${escapeHtml(h.title)}</div>
+      <q>${escapeHtml(h.sentence)}</q>
+    </article>
+  `).join("");
+}
+
+function insertDraft(text) {
+  if (!text) {
+    return;
+  }
+  const start = draft.selectionStart;
+  const before = draft.value.slice(0, start);
+  const after = draft.value.slice(draft.selectionEnd);
+  const pad = before && !before.endsWith("\n") ? "\n\n" : "";
+  draft.value = before + pad + text + (after.startsWith("\n") ? "" : "\n") + after;
+  scheduleSave();
+}
+
+function selection() {
+  return draft.value.slice(draft.selectionStart, draft.selectionEnd).trim();
+}
+
+function scheduleSave() {
+  toast("сохраняю…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    await api("/api/draft", { title: title.value, draft: draft.value });
+    toast("сохранено");
+  }, 500);
+}
+
+async function runAi(action, query) {
+  toast("собираю из библиотеки…");
+  const data = await api("/api/ai", {
+    action,
+    query,
+    title: title.value,
+    draft: draft.value,
+  });
+  showHits(data.hits);
+  if (action === "chat") {
+    addMessage("bot", data.text);
+  } else if (action === "cite" && data.inline) {
+    insertDraft(data.inline);
+    addMessage("bot", data.text);
   } else {
-    preview.textContent = text;
+    insertDraft(data.text);
+    addMessage("bot", data.text);
   }
-  addHistory(data);
-  result.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function addHistory(data) {
-  historyEmpty.hidden = true;
-  const item = document.createElement("li");
-  item.className = data.status;
-  const snippet = (quoteInput.value.trim() || "пусто").slice(0, 42);
-  item.textContent = data.status + " · стр. " + data.page + " · " + snippet;
-  historyList.prepend(item);
-  while (historyList.children.length > 8) {
-    historyList.lastElementChild.remove();
+  if (data.bibliography && data.bibliography.length) {
+    addMessage("bot", "Список: " + data.bibliography.join(" "));
+  }
+  toast("готово");
+  if (action !== "chat") {
+    document.querySelector('[data-tab="hits"]').click();
   }
 }
 
-async function check() {
-  submit.disabled = true;
-  try {
-    const response = await fetch("/api/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        page_text: pageText.value,
-        quote: quoteInput.value,
-        page: pageInput.value,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      show({ status: "empty", page: pageInput.value, error: data.error });
-      return;
+title.addEventListener("input", scheduleSave);
+draft.addEventListener("input", scheduleSave);
+
+document.querySelectorAll(".nav").forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll(".nav").forEach((b) => b.classList.toggle("on", b === btn));
+    $("viewDoc").hidden = btn.dataset.view !== "doc";
+    $("viewLib").hidden = btn.dataset.view !== "lib";
+  };
+});
+
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b === btn));
+    $("tabChat").hidden = btn.dataset.tab !== "chat";
+    $("tabHits").hidden = btn.dataset.tab !== "hits";
+    $("tabCheck").hidden = btn.dataset.tab !== "check";
+  };
+});
+
+document.querySelectorAll("[data-ai]").forEach((btn) => {
+  btn.onclick = async () => {
+    const action = btn.dataset.ai;
+    const query = action === "paraphrase" || action === "cite" ? (selection() || draft.value.slice(-400)) : title.value;
+    btn.disabled = true;
+    try {
+      await runAi(action, query);
+    } catch (error) {
+      addMessage("bot", error.message);
+      toast(error.message);
+    } finally {
+      btn.disabled = false;
     }
-    show(data);
-  } catch (error) {
-    show({
-      status: "empty",
-      page: pageInput.value,
-      error: "Сервер не ответил. Если страница открыта из контейнера, проверьте docker logs.",
-    });
-  } finally {
-    submit.disabled = false;
-  }
-}
+  };
+});
 
-form.addEventListener("submit", (event) => {
+$("chatForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  check();
-});
-
-document.addEventListener("keydown", (event) => {
-  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-    event.preventDefault();
-    check();
+  const q = $("question").value.trim();
+  if (!q) {
+    return;
+  }
+  addMessage("user", q);
+  $("question").value = "";
+  try {
+    await runAi("chat", q);
+    document.querySelector('[data-tab="chat"]').click();
+  } catch (error) {
+    addMessage("bot", error.message);
   }
 });
 
-document.querySelector("#fillPage").addEventListener("click", () => {
-  pageText.value = SAMPLE_PAGE;
-  pageInput.value = "4";
-  pageText.focus();
-});
+$("openAdd").onclick = () => document.querySelector('[data-view="lib"]').click();
 
-document.querySelector("#file").addEventListener("change", async (event) => {
+$("pFile").addEventListener("change", async (event) => {
   const file = event.target.files && event.target.files[0];
+  fileB64 = null;
+  fileName = "";
+  $("pFileName").textContent = "";
   if (!file) {
     return;
   }
-  pageText.value = await file.text();
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((b) => { binary += String.fromCharCode(b); });
+  fileB64 = btoa(binary);
+  fileName = file.name;
+  $("pFileName").textContent = file.name;
+  if (!$("pTitle").value) {
+    $("pTitle").value = file.name.replace(/\.(pdf|txt)$/i, "");
+  }
 });
 
-document.querySelectorAll("[data-case]").forEach((button) => {
-  button.addEventListener("click", () => {
-    pageText.value = SAMPLE_PAGE;
-    pageInput.value = "4";
-    quoteInput.value = CASES[button.dataset.case];
-    check();
-  });
+$("addForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const state = (await api("/api/papers", {
+      title: $("pTitle").value,
+      authors: $("pAuthors").value,
+      year: $("pYear").value,
+      text: $("pText").value,
+      file_b64: fileB64,
+      filename: fileName,
+    })).state;
+    renderPapers(state.papers);
+    $("addForm").reset();
+    fileB64 = null;
+    $("pFileName").textContent = "";
+    toast("статья в библиотеке");
+  } catch (error) {
+    toast(error.message);
+  }
 });
 
-const demo = new URLSearchParams(location.search).get("demo");
-if (CASES[demo]) {
-  quoteInput.value = CASES[demo];
-  check();
-}
+$("doCheck").onclick = async () => {
+  try {
+    const data = await api("/api/check", {
+      page: $("cPage").value,
+      page_text: $("cPageText").value,
+      quote: $("cQuote").value,
+    });
+    $("checkOut").textContent = `страница ${data.page} · ${data.status}`;
+  } catch (error) {
+    $("checkOut").textContent = error.message;
+  }
+};
+
+addMessage("bot", "Я пишу только из статей слева. Спросите, например: «что они говорят про номер страницы у цитаты?» или нажмите «План главы».");
+
+api("/api/state").then((state) => {
+  title.value = state.title;
+  draft.value = state.draft;
+  renderPapers(state.papers);
+}).catch((error) => toast(error.message));

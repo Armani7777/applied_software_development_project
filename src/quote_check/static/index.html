@@ -3,81 +3,89 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Карточка статьи — проверка цитаты</title>
+  <title>Jeny — помощник для научной работы</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="desk">
-    <header class="mast">
-      <div>
-        <p class="kicker">помощник для научной работы</p>
-        <h1>Проверка цитаты на странице</h1>
-      </div>
-      <p class="mast-note">Карточка не считается готовой, пока фраза не находится на указанной странице.</p>
+  <aside class="rail">
+    <p class="brand">Jeny</p>
+    <p class="brand-sub">черновик из ваших статей</p>
+    <nav>
+      <button class="nav on" data-view="doc">Документ</button>
+      <button class="nav" data-view="lib">Библиотека</button>
+    </nav>
+    <div class="rail-lib" id="railPapers"></div>
+    <button class="ghost-add" id="openAdd">+ статья</button>
+  </aside>
+
+  <main class="stage">
+    <header class="docbar">
+      <input id="title" maxlength="160" aria-label="Название документа">
+      <p class="save-hint" id="saveHint">черновик на этом компьютере</p>
     </header>
 
-    <form id="form" class="workspace">
-      <section class="sheet">
-        <div class="sheet-top">
-          <div>
-            <p class="label">Текст страницы</p>
-            <p class="sub">Уже извлечённый слой, не PDF целиком</p>
-          </div>
-          <label class="page-chip">стр.
-            <input id="page" name="page" type="number" min="1" value="4" required>
-          </label>
-        </div>
-        <textarea id="pageText" name="page_text" rows="14" placeholder="Вставьте текст одной страницы или откройте .txt"></textarea>
-        <div class="sheet-actions">
-          <button class="ghost" type="button" id="fillPage">Учебный абзац</button>
-          <label class="ghost file-btn">Открыть .txt
-            <input id="file" type="file" accept=".txt,text/plain" hidden>
-          </label>
-        </div>
-      </section>
-
-      <aside class="side">
-        <section class="card">
-          <p class="label">Цитата из карточки</p>
-          <textarea id="quote" name="quote" rows="5" placeholder="Фраза, которую карточка хочет показать"></textarea>
-          <p class="hint">Пробелы, перенос строки и регистр не делают фразу другой.</p>
-          <button class="primary" type="submit" id="submit">Проверить <span>Ctrl + Enter</span></button>
-          <div class="cases" role="group" aria-label="Готовые случаи">
-            <button type="button" data-case="cited">Фраза со страницы</button>
-            <button type="button" data-case="unchecked">Чужая фраза</button>
-            <button type="button" data-case="empty">Пустое поле</button>
-          </div>
-        </section>
-
-        <section class="legend">
-          <p class="label">Три ответа</p>
-          <ul>
-            <li><i class="dot cited"></i><b>cited</b> — фраза на странице есть, поле можно показывать</li>
-            <li><i class="dot unchecked"></i><b>unchecked</b> — строка есть, на этой странице её нет</li>
-            <li><i class="dot empty"></i><b>empty</b> — цитату забыли, это не то же самое, что «не нашёл»</li>
-          </ul>
-        </section>
-      </aside>
-    </form>
-
-    <section id="result" class="verdict" hidden aria-live="polite">
-      <div class="verdict-head">
-        <p class="stamp" id="statusCode"></p>
-        <h2 id="statusTitle"></h2>
+    <section class="doc-view" id="viewDoc">
+      <textarea id="draft" spellcheck="true" placeholder="Пишите главу здесь. Продолжение и цитаты берутся только из библиотеки слева."></textarea>
+      <div class="commands">
+        <button data-ai="continue">Продолжить</button>
+        <button data-ai="outline">План главы</button>
+        <button data-ai="cite">Вставить цитату</button>
+        <button data-ai="paraphrase">Пересказать выделенное</button>
+        <button data-ai="complete">Дописать абзац</button>
       </div>
-      <p id="statusText"></p>
-      <blockquote id="shownQuote"></blockquote>
-      <div id="preview" class="preview"></div>
     </section>
 
-    <section class="history-block">
-      <p class="label">Эта сессия</p>
-      <ol id="history" class="history"></ol>
-      <p id="historyEmpty" class="hint">Пока пусто. Три кнопки справа подставляют учебный случай за один клик.</p>
+    <section class="lib-view" id="viewLib" hidden>
+      <div class="lib-head">
+        <h2>Библиотека</h2>
+        <p>PDF или текст. Чат и автодополнение не ходят в интернет.</p>
+      </div>
+      <form id="addForm" class="add-form">
+        <input id="pTitle" placeholder="Название" required>
+        <input id="pAuthors" placeholder="Авторы">
+        <input id="pYear" placeholder="Год" maxlength="8">
+        <textarea id="pText" rows="7" placeholder="Текст статьи. Можно разметить страницы строками вида: стр. 2"></textarea>
+        <div class="add-row">
+          <label class="file">PDF или .txt
+            <input id="pFile" type="file" accept=".pdf,.txt,application/pdf,text/plain" hidden>
+          </label>
+          <span id="pFileName" class="muted"></span>
+          <button type="submit" class="primary">Положить в библиотеку</button>
+        </div>
+      </form>
+      <div id="libList" class="lib-list"></div>
     </section>
+  </main>
 
-    <p class="limits">Не склеиваю слово с дефисом на конце строки и не смотрю соседнюю страницу. Если фраза из-за этого не находится, статус будет «не проверено», а не «цитата верна».</p>
-  </div>
+  <aside class="panel">
+    <div class="tabs">
+      <button class="tab on" data-tab="chat">Чат</button>
+      <button class="tab" data-tab="hits">Источники</button>
+      <button class="tab" data-tab="check">Проверка цитаты</button>
+    </div>
+
+    <div id="tabChat" class="tab-body">
+      <div id="messages" class="messages"></div>
+      <form id="chatForm" class="chat-form">
+        <textarea id="question" rows="3" placeholder="Спросите только по загруженным статьям"></textarea>
+        <button class="primary" type="submit">Спросить</button>
+      </form>
+    </div>
+
+    <div id="tabHits" class="tab-body" hidden>
+      <p class="muted" id="hitsEmpty">Здесь появятся куски из библиотеки после чата, плана или цитаты.</p>
+      <div id="hits"></div>
+    </div>
+
+    <div id="tabCheck" class="tab-body" hidden>
+      <p class="muted">Отдельная проверка: есть ли фраза на тексте страницы. Это не поиск смысла.</p>
+      <label>Страница <input id="cPage" type="number" min="1" value="2"></label>
+      <textarea id="cPageText" rows="6" placeholder="Текст одной страницы"></textarea>
+      <textarea id="cQuote" rows="3" placeholder="Цитата из карточки"></textarea>
+      <button class="primary" id="doCheck" type="button">Проверить</button>
+      <div id="checkOut" class="check-out"></div>
+    </div>
+  </aside>
   <script src="/app.js"></script>
 </body>
 </html>
